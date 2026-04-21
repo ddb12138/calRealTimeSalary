@@ -1,0 +1,2757 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实时工资计算器 - 赚钱每一秒</title>
+    <style>
+        /* ========== CSS变量 ========== */
+        :root {
+            --primary-color: #4CAF50;
+            --primary-dark: #388E3C;
+            --primary-light: #C8E6C9;
+            --secondary-color: #2196F3;
+            --accent-color: #FF9800;
+            --background-color: #f5f5f5;
+            --card-background: #ffffff;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --text-muted: #999999;
+            --border-color: #e0e0e0;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --shadow-hover: 0 6px 12px rgba(0, 0, 0, 0.15);
+            --radius: 12px;
+            --radius-sm: 8px;
+            --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        /* ========== 重置样式 ========== */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            font-size: 16px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        /* ========== 主容器 ========== */
+        #app {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #main-container {
+            background: var(--card-background);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 50px;
+            text-align: center;
+            width: 50vw;
+            min-width: 400px;
+            max-width: 600px;
+        }
+
+        /* ========== 工资显示区域 ========== */
+        #salary-display {
+            margin-bottom: 40px;
+            padding: 60px 30px;
+            background: linear-gradient(135deg, var(--primary-light) 0%, #E8F5E9 100%);
+            border-radius: var(--radius);
+        }
+
+        #status-indicator {
+            font-size: 20px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.8);
+            border-radius: var(--radius-sm);
+            display: inline-block;
+        }
+
+        #status-indicator.working {
+            background: rgba(255,255,255,0.8);
+            color: var(--primary-dark);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        #status-indicator.off-work {
+            background: rgba(255,255,255,0.8);
+            color: #E65100;
+        }
+
+        #status-indicator.before-work {
+            background: rgba(255,255,255,0.8);
+            color: #1565C0;
+        }
+
+        #salary-amount {
+            font-size: 100px;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            line-height: 1.1;
+            animation: breathe 0.5s ease-in-out infinite;
+        }
+
+        @keyframes breathe {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+        }
+
+        #salary-amount.animate {
+            animation: shake 0.3s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: scale(1); }
+            25% { transform: scale(1.15); }
+            50% { transform: scale(0.95); }
+            75% { transform: scale(1.12); }
+        }
+
+        #wool-summary {
+            font-size: 24px;
+            color: var(--text-secondary);
+            margin-top: 12px;
+        }
+
+        #wool-summary .wool-amount {
+            color: var(--accent-color);
+            font-weight: 600;
+        }
+
+        #wool-summary .total-amount {
+            color: var(--primary-dark);
+            font-weight: 700;
+            font-size: 28px;
+        }
+
+        /* ========== 通用按钮风格 ========== */
+        :is(
+            #toggle-config,
+            #save-config,
+            #wool-buttons button,
+            .modal-buttons button,
+            .water-options button,
+            .record-panel .quick-options button,
+            .record-panel .custom-input .btn-primary,
+            #change-lock-password,
+            #forgot-password
+        ) {
+            border-radius: var(--radius-sm);
+            border: 1px solid transparent;
+            font-family: var(--font-family);
+            font-weight: 600;
+            transition: transform 0.15s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        :is(
+            #toggle-config,
+            #save-config,
+            #wool-buttons button,
+            .modal-buttons button,
+            .water-options button,
+            .record-panel .quick-options button,
+            .record-panel .custom-input .btn-primary,
+            #change-lock-password,
+            #forgot-password
+        ):hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+        }
+
+        :is(
+            #toggle-config,
+            #save-config,
+            #wool-buttons button,
+            .modal-buttons button,
+            .water-options button,
+            .record-panel .quick-options button,
+            .record-panel .custom-input .btn-primary,
+            #change-lock-password,
+            #forgot-password
+        ):active {
+            transform: translateY(0);
+        }
+
+        /* ========== 薅羊毛按钮 ========== */
+        #wool-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        #wool-buttons button {
+            padding: 14px 24px;
+            border: 1px solid #dce7dc;
+            background: #ffffff;
+            color: var(--text-primary);
+            font-size: 18px;
+            cursor: pointer;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        #wool-buttons button:hover {
+            background: #f3fff4;
+            border-color: var(--primary-color);
+            color: var(--primary-dark);
+        }
+
+        /* ========== 配置面板 ========== */
+        #config-panel {
+            margin-top: 20px;
+        }
+
+        #toggle-config {
+            padding: 10px 20px;
+            background: #2f3338;
+            border-color: #2f3338;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        #toggle-config:hover {
+            background: #454a50;
+            border-color: #454a50;
+        }
+
+        #config-content {
+            margin-top: 16px;
+            padding: 20px;
+            background: var(--background-color);
+            border-radius: var(--radius-sm);
+        }
+
+        #config-content.hidden {
+            display: none;
+        }
+
+        .config-section {
+            margin-bottom: 16px;
+            padding: 16px;
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--primary-color);
+            border-radius: var(--radius-sm);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        }
+
+        .config-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .config-section h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: 0.5px;
+            margin-bottom: 14px;
+            text-align: left;
+        }
+
+        .config-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px dashed #ececec;
+        }
+
+        .config-row:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .config-row label {
+            flex: 1;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        .config-row input,
+        .config-row select {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            width: 120px;
+        }
+
+        /* ========== 开关按钮样式 ========== */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 54px;
+            height: 30px;
+            flex: 0 0 auto;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            margin: 0;
+            z-index: 2;
+            cursor: pointer;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #111111;
+            border-radius: 999px;
+            transition: background-color 0.2s ease;
+        }
+
+        .toggle-slider:before {
+            content: "";
+            position: absolute;
+            height: 24px;
+            width: 24px;
+            left: 3px;
+            top: 3px;
+            background-color: #ffffff;
+            border-radius: 50%;
+            transition: transform 0.2s ease;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background-color: var(--primary-color);
+        }
+
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(24px);
+        }
+
+        .toggle-switch input:focus-visible + .toggle-slider {
+            outline: 2px solid var(--primary-light);
+            outline-offset: 2px;
+        }
+
+        .config-row input:focus,
+        .config-row select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        /* ========== 锁定界面 ========== */
+        #lock-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--card-background);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        #lock-screen.hidden {
+            display: none;
+        }
+
+        #lock-info {
+            font-size: 24px;
+            color: var(--text-secondary);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        #lock-keypad-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            width: 100%;
+            max-width: 420px;
+            padding: 0 12px;
+        }
+
+        #lock-hint {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 18px;
+            text-align: center;
+        }
+
+        #lock-keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .keypad-btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: var(--background-color);
+            border: none;
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .keypad-btn:hover {
+            background: var(--primary-light);
+            transform: scale(1.05);
+        }
+
+        .keypad-btn:active {
+            transform: scale(0.95);
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .keypad-btn.delete {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .keypad-btn.delete:hover {
+            background: #ffcdd2;
+        }
+
+        #password-display {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .password-dot {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--border-color);
+            border: 2px solid #d6d6d6;
+            transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .password-dot.filled {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            transform: scale(1.05);
+        }
+
+        #forgot-password {
+            margin-top: 30px;
+            padding: 10px 20px;
+            background: linear-gradient(180deg, #f45b56 0%, #e53935 100%);
+            border-color: #d32f2f;
+            color: #ffffff;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        #forgot-password:hover {
+            background: linear-gradient(180deg, #fb6660 0%, #f44336 100%);
+        }
+
+        /* ========== 弹窗 ========== */
+        #modal-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1001;
+        }
+
+        #modal-container.hidden {
+            display: none;
+        }
+
+        #modal-content {
+            background: var(--card-background);
+            border-radius: var(--radius);
+            padding: 24px;
+            max-width: 400px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        #modal-content h2 {
+            font-size: 20px;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+
+        #modal-content .close-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .modal-buttons button {
+            padding: 10px 20px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: linear-gradient(180deg, #56c85e 0%, #43a047 100%);
+            border-color: #388e3c;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #2f3338;
+            border-color: #2f3338;
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(180deg, #f45b56 0%, #e53935 100%);
+            border-color: #d32f2f;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(180deg, #60d56a 0%, #4caf50 100%);
+        }
+
+        .btn-secondary:hover {
+            background: #454a50;
+            border-color: #454a50;
+        }
+
+        .btn-danger:hover {
+            background: linear-gradient(180deg, #fb6660 0%, #f44336 100%);
+        }
+
+        #save-config {
+            width: 100%;
+            margin-top: 14px;
+            padding: 12px 16px;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        /* ========== 喝水提醒 ========== */
+        #water-reminder {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--card-background);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 16px;
+            max-width: 280px;
+            z-index: 999;
+            animation: slideIn 0.3s ease;
+        }
+
+        #water-reminder.hidden {
+            display: none;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        #reminder-content h3 {
+            font-size: 16px;
+            margin-bottom: 12px;
+        }
+
+        .water-options {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .water-options button {
+            padding: 12px 16px;
+            min-height: 44px;
+            border: 2px solid var(--primary-color);
+            border-radius: var(--radius-sm);
+            background: #f3fff4;
+            color: var(--primary-dark);
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(76, 175, 80, 0.15);
+            transition: all 0.15s ease;
+        }
+
+        .water-options button:hover {
+            background: var(--primary-light);
+            border-color: var(--primary-color);
+            transform: translateY(-1px);
+        }
+
+        /* ========== 辅助类 ========== */
+        .hidden {
+            display: none !important;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-muted {
+            color: var(--text-muted);
+        }
+
+        /* ========== 快捷记录面板样式 ========== */
+        .record-panel {
+            padding: 16px;
+        }
+
+        .record-panel .quick-options {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .record-panel .quick-options button {
+            padding: 14px 20px;
+            min-height: 48px;
+            border: 2px solid var(--primary-color);
+            border-radius: var(--radius-sm);
+            background: #f3fff4;
+            color: var(--primary-dark);
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 3px 8px rgba(76, 175, 80, 0.18);
+            transition: all 0.15s ease;
+        }
+
+        .record-panel .quick-options button:hover {
+            background: var(--primary-light);
+            transform: translateY(-1px);
+        }
+
+        .record-panel .quick-options button:active {
+            transform: translateY(0);
+        }
+
+        .record-panel .custom-input {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 8px;
+        }
+
+        .record-panel .custom-input input,
+        .record-panel .custom-input select {
+            flex: 1 1 auto;
+            min-width: 110px;
+            padding: 8px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            color: var(--text-secondary);
+            background: #fafafa;
+        }
+
+        .record-panel .custom-input .btn-primary {
+            padding: 8px 12px;
+            min-height: 36px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: var(--radius-sm);
+        }
+
+        /* ========== 响应式 ========== */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            #main-container {
+                padding: 30px;
+                width: 90vw;
+                min-width: unset;
+            }
+
+            #salary-display {
+                padding: 40px 20px;
+            }
+
+            #salary-amount {
+                font-size: 60px;
+            }
+
+            #wool-summary {
+                font-size: 18px;
+            }
+
+            #wool-buttons {
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+
+            #wool-buttons button {
+                padding: 12px 16px;
+                font-size: 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #salary-amount {
+                font-size: 42px;
+            }
+
+            #wool-buttons button {
+                padding: 10px 14px;
+                font-size: 14px;
+            }
+        }
+
+        /* ========== 浮动提示 ========== */
+        #toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--primary-color);
+            color: white;
+            padding: 12px 24px;
+            border-radius: var(--radius-sm);
+            font-size: 16px;
+            z-index: 2000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        #toast.show {
+            opacity: 1;
+        }
+
+        /* ========== 锁定按钮（右下角） ========== */
+        #lock-toggle-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--card-background);
+            border: 2px solid var(--border-color);
+            font-size: 28px;
+            cursor: pointer;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow);
+        }
+
+        #lock-toggle-btn:hover {
+            background: var(--primary-light);
+            border-color: var(--primary-color);
+            transform: scale(1.1);
+        }
+
+        #lock-toggle-btn.locked {
+            background: var(--primary-color);
+            border-color: var(--primary-dark);
+        }
+
+        /* ========== 自动锁倒计时（左下角） ========== */
+        #auto-lock-countdown {
+            --countdown-progress: 360deg;
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: conic-gradient(var(--primary-color) var(--countdown-progress), #1a1a1a 0deg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            box-shadow: var(--shadow);
+            overflow: visible;
+        }
+
+        #auto-lock-countdown::before {
+            content: "";
+            position: absolute;
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            background: var(--card-background);
+        }
+
+        #auto-lock-countdown .countdown-title {
+            position: absolute;
+            top: -32px;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            line-height: 1;
+            background: linear-gradient(90deg, #ff6f61 0%, #ffb347 50%, #ff6f61 100%);
+            color: transparent;
+            -webkit-background-clip: text;
+            background-clip: text;
+            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6), 0 2px 4px rgba(0, 0, 0, 0.25);
+        }
+
+        #auto-lock-countdown .seconds {
+            position: relative;
+            z-index: 1;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+
+        @media (min-width: 768px) {
+            #salary-amount {
+                font-size: 96px;
+            }
+
+            #salary-display {
+                padding: 60px 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- 主界面容器 -->
+        <div id="main-container">
+            <!-- 工资显示区域 -->
+            <div id="salary-display">
+                <div id="status-indicator"></div>
+                <div id="salary-amount"></div>
+                <div id="wool-summary"></div>
+            </div>
+
+            <!-- 薅羊毛快捷按钮 -->
+            <div id="wool-buttons">
+                <button id="btn-water">💧 喝水</button>
+                <button id="btn-charge">⚡ 充电</button>
+                <button id="btn-fish">🐟 摸鱼</button>
+                <button id="btn-history">📊 历史</button>
+            </div>
+
+            <!-- 配置面板 -->
+            <div id="config-panel">
+                <button id="toggle-config">⚙️ 设置</button>
+                <div id="config-content" class="hidden">
+                    <!-- 薪资配置 -->
+                    <div class="config-section">
+                        <h3>💰 薪资设置</h3>
+                        <div class="config-row">
+                            <label>薪资模式</label>
+                            <select id="salary-mode">
+                                <option value="monthly">月薪</option>
+                                <option value="hourly">时薪</option>
+                            </select>
+                        </div>
+                        <div class="config-row" id="monthly-row">
+                            <label>月薪金额</label>
+                            <input type="number" id="monthly-salary" value="10000">
+                        </div>
+                        <div class="config-row hidden" id="hourly-row">
+                            <label>时薪金额</label>
+                            <input type="number" id="hourly-salary" value="50">
+                        </div>
+                    </div>
+
+                    <!-- 工作时间配置 -->
+                    <div class="config-section">
+                        <h3>⏰ 工作时间</h3>
+                        <div class="config-row">
+                            <label>上班时间</label>
+                            <input type="time" id="work-start" value="09:00">
+                        </div>
+                        <div class="config-row">
+                            <label>下班时间</label>
+                            <input type="time" id="work-end" value="18:00">
+                        </div>
+                        <div class="config-row">
+                            <label>午休开始</label>
+                            <input type="time" id="lunch-start" value="12:00">
+                        </div>
+                        <div class="config-row">
+                            <label>午休结束</label>
+                            <input type="time" id="lunch-end" value="13:00">
+                        </div>
+                        <div class="config-row">
+                            <label>月工作天数</label>
+                            <input type="number" id="work-days" value="22" min="1" max="31">
+                        </div>
+                    </div>
+
+                    <!-- 水电费配置 -->
+                    <div class="config-section">
+                        <h3>💡 水电费单价</h3>
+                        <div class="config-row">
+                            <label>喝水换算</label>
+                            <select id="water-bottle-mode">
+                                <option value="yibao-500">怡宝 500ml / ¥3</option>
+                                <option value="yibao-1500">大怡宝 1500ml / ¥5（打折）</option>
+                            </select>
+                        </div>
+                        <div class="config-row">
+                            <label>电费模式</label>
+                            <select id="electric-price-mode">
+                                <option value="civil">民电 (¥0.6/度)</option>
+                                <option value="commercial">商电 (¥1.2/度)</option>
+                                <option value="custom">自定义</option>
+                            </select>
+                        </div>
+                        <div class="config-row hidden" id="custom-electric-row">
+                            <label>电费单价</label>
+                            <input type="number" id="electric-price" value="0.6" step="0.1">
+                        </div>
+                    </div>
+
+                    <!-- 喝水提醒配置 -->
+                    <div class="config-section">
+                        <h3>💧 喝水提醒</h3>
+                        <div class="config-row">
+                            <label for="water-reminder-enabled">启用提醒</label>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="water-reminder-enabled" checked>
+                                <span class="toggle-slider"></span>
+                            </div>
+                        </div>
+                        <div class="config-row">
+                            <label>提醒间隔</label>
+                            <select id="water-reminder-interval">
+                                <option value="0.5">30秒</option>
+                                <option value="10" selected>10分钟</option>
+                                <option value="15">15分钟</option>
+                                <option value="30">30分钟</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 锁定配置 -->
+                    <div class="config-section">
+                        <h3>🔒 隐私保护</h3>
+                        <div class="config-row">
+                            <label for="lock-enabled">启用6位数字锁</label>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="lock-enabled">
+                                <span class="toggle-slider"></span>
+                            </div>
+                        </div>
+                        <div class="config-row">
+                            <label>自动锁定</label>
+                            <select id="auto-lock-interval">
+                                <option value="0">关闭</option>
+                                <option value="10">10秒（推荐）</option>
+                                <option value="30">30秒</option>
+                                <option value="60">1分钟</option>
+                                <option value="180">3分钟</option>
+                                <option value="300">5分钟</option>
+                            </select>
+                        </div>
+                        <div class="config-row">
+                            <label>锁屏密码</label>
+                            <button id="change-lock-password" type="button" class="btn-secondary">修改密码</button>
+                        </div>
+                    </div>
+
+                    <button id="save-config" class="btn-primary">保存设置</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 锁定状态界面 -->
+        <div id="lock-screen" class="hidden">
+            <div id="lock-info">已工作 X 小时 X 分钟</div>
+            <div id="lock-keypad-container">
+                <p id="lock-hint">请输入6位数字密码</p>
+                <div id="password-display">
+                    <div class="password-dot"></div>
+                    <div class="password-dot"></div>
+                    <div class="password-dot"></div>
+                    <div class="password-dot"></div>
+                    <div class="password-dot"></div>
+                    <div class="password-dot"></div>
+                </div>
+                <div id="lock-keypad">
+                    <button class="keypad-btn" data-num="1">1</button>
+                    <button class="keypad-btn" data-num="2">2</button>
+                    <button class="keypad-btn" data-num="3">3</button>
+                    <button class="keypad-btn" data-num="4">4</button>
+                    <button class="keypad-btn" data-num="5">5</button>
+                    <button class="keypad-btn" data-num="6">6</button>
+                    <button class="keypad-btn" data-num="7">7</button>
+                    <button class="keypad-btn" data-num="8">8</button>
+                    <button class="keypad-btn" data-num="9">9</button>
+                    <button class="keypad-btn delete" data-action="delete">←</button>
+                    <button class="keypad-btn" data-num="0">0</button>
+                    <button class="keypad-btn delete" data-action="clear">清</button>
+                </div>
+                <button id="forgot-password">忘记密码？重置所有数据</button>
+            </div>
+        </div>
+
+        <!-- 浮动提示 -->
+        <div id="toast"></div>
+
+        <!-- 右下角锁定按钮 -->
+        <button id="lock-toggle-btn">🔒</button>
+
+        <!-- 左下角自动锁倒计时 -->
+        <div id="auto-lock-countdown" class="hidden" aria-live="polite">
+            <span class="countdown-title">锁屏倒计时</span>
+            <span id="auto-lock-seconds" class="seconds">0s</span>
+        </div>
+
+        <!-- 弹窗容器 -->
+        <div id="modal-container" class="hidden">
+            <div id="modal-content"></div>
+        </div>
+
+        <!-- 喝水提醒通知 -->
+        <div id="water-reminder" class="hidden">
+            <div id="reminder-content"></div>
+        </div>
+    </div>
+
+    <script>
+        /* ========== 配置管理模块 ========== */
+        const ConfigManager = {
+            // 默认配置
+            defaults: {
+                // 薪资配置
+                salaryMode: 'monthly', // 'monthly' 或 'hourly'
+                monthlySalary: 10000,
+                hourlySalary: 50,
+                // 工作时间配置
+                workStart: '09:00',
+                workEnd: '18:00',
+                lunchStart: '12:00',
+                lunchEnd: '13:00',
+                workDaysPerMonth: 22,
+                // 水电费配置
+                waterBottleMode: 'yibao-500', // 'yibao-500' 或 'yibao-1500'
+                electricPriceMode: 'civil',
+                electricPrice: 0.6, // 元/度
+                // 喝水提醒配置
+                waterReminderEnabled: true,
+                waterReminderInterval: 10, // 分钟（支持小数，如0.5=30秒）
+                lastWaterReminder: null,
+                // 锁定配置
+                lockEnabled: false,
+                lockPassword: null,  // 6位数字密码
+                autoLockInterval: 0, // 0=关闭, 30/60/180/300 秒
+            },
+
+            // 存储键名
+            STORAGE_KEY: 'salaryCalculatorConfig',
+
+            // 加载配置
+            load() {
+                try {
+                    const saved = localStorage.getItem(this.STORAGE_KEY);
+                    if (saved) {
+                        const config = JSON.parse(saved);
+                        // 合并默认值，确保新字段有默认值
+                        return { ...this.defaults, ...config };
+                    }
+                } catch (e) {
+                    console.error('加载配置失败:', e);
+                }
+                return { ...this.defaults };
+            },
+
+            // 保存配置
+            save(config) {
+                try {
+                    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(config));
+                } catch (e) {
+                    console.error('保存配置失败:', e);
+                }
+            },
+
+            // 更新单个配置项
+            update(key, value) {
+                const config = this.load();
+                config[key] = value;
+                this.save(config);
+                return config;
+            },
+
+            // 重置所有配置
+            reset() {
+                this.save(this.defaults);
+                return this.defaults;
+            },
+
+            // 获取时薪（统一计算）
+            getHourlySalary() {
+                const config = this.load();
+                if (config.salaryMode === 'hourly') {
+                    return config.hourlySalary;
+                } else {
+                    // 月薪转时薪：月薪 / (工作天数 * 每天工作小时)
+                    const dailyHours = this.getDailyWorkHours();
+                    return config.monthlySalary / (config.workDaysPerMonth * dailyHours);
+                }
+            },
+
+            // 获取每天工作小时数（扣除午休）
+            getDailyWorkHours() {
+                const config = this.load();
+                const start = this.parseTime(config.workStart);
+                const end = this.parseTime(config.workEnd);
+                const lunchStart = this.parseTime(config.lunchStart);
+                const lunchEnd = this.parseTime(config.lunchEnd);
+
+                let totalMinutes = (end - start) / 60000;
+                const lunchMinutes = (lunchEnd - lunchStart) / 60000;
+                totalMinutes -= lunchMinutes;
+
+                return totalMinutes / 60;
+            },
+
+            // 解析时间字符串为Date对象
+            parseTime(timeStr) {
+                const [hours, minutes] = timeStr.split(':').map(Number);
+                const now = new Date();
+                now.setHours(hours, minutes, 0, 0);
+                return now;
+            }
+        };
+
+        /* ========== 浮动提示工具 ========== */
+        function showToast(message, duration = 2000) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, duration);
+        }
+
+        /* ========== 页面标题管理 ========== */
+        const TitleManager = {
+            activeTitle: document.title,
+            inactiveTitle: '：）芜湖~',
+
+            update() {
+                const isCurrentPage = document.visibilityState === 'visible' && document.hasFocus();
+                const lockScreen = document.getElementById('lock-screen');
+                const isUnlocked = !NumberLock.isLocked && lockScreen && lockScreen.classList.contains('hidden');
+                document.title = (isCurrentPage && isUnlocked) ? this.activeTitle : this.inactiveTitle;
+            }
+        };
+
+        /* ========== 初始化配置 ========== */
+        let appConfig = ConfigManager.load();
+
+        /* ========== 工资计算模块 ========== */
+        const SalaryCalculator = {
+            // 判断当前是否在工作时间内
+            isWorkingTime() {
+                const config = ConfigManager.load();
+                const now = new Date();
+                const currentTime = now.getHours() * 60 + now.getMinutes();
+
+                const start = this.parseTimeToMinutes(config.workStart);
+                const end = this.parseTimeToMinutes(config.workEnd);
+                const lunchStart = this.parseTimeToMinutes(config.lunchStart);
+                const lunchEnd = this.parseTimeToMinutes(config.lunchEnd);
+
+                // 工作时间内，但不在午休时间
+                if (currentTime >= start && currentTime < end) {
+                    if (currentTime >= lunchStart && currentTime < lunchEnd) {
+                        return false; // 午休时间
+                    }
+                    return true;
+                }
+                return false;
+            },
+
+            // 获取工作状态
+            getWorkStatus() {
+                const config = ConfigManager.load();
+                const now = new Date();
+                const currentTime = now.getHours() * 60 + now.getMinutes();
+
+                const start = this.parseTimeToMinutes(config.workStart);
+                const end = this.parseTimeToMinutes(config.workEnd);
+
+                if (currentTime < start) {
+                    return 'before-work'; // 工作未开始
+                } else if (currentTime >= end) {
+                    return 'off-work'; // 工作已结束
+                } else if (this.isWorkingTime()) {
+                    return 'working'; // 正在工作
+                } else {
+                    return 'lunch'; // 午休时间
+                }
+            },
+
+            // 解析时间字符串为分钟数
+            parseTimeToMinutes(timeStr) {
+                const [hours, minutes] = timeStr.split(':').map(Number);
+                return hours * 60 + minutes;
+            },
+
+            // 计算当前已赚取的工资（精确到分，用整数存储避免浮点精度问题）
+            calculateEarnedSalary() {
+                const config = ConfigManager.load();
+                const status = this.getWorkStatus();
+                const hourlySalary = ConfigManager.getHourlySalary();
+
+                // 工作未开始，返回0
+                if (status === 'before-work') {
+                    return 0;
+                }
+
+                const now = new Date();
+                const currentMinutes = now.getHours() * 60 + now.getMinutes();
+                const currentSeconds = now.getSeconds();
+
+                const start = this.parseTimeToMinutes(config.workStart);
+                const end = this.parseTimeToMinutes(config.workEnd);
+                const lunchStart = this.parseTimeToMinutes(config.lunchStart);
+                const lunchEnd = this.parseTimeToMinutes(config.lunchEnd);
+
+                let workedMinutes = 0;
+
+                if (status === 'off-work') {
+                    // 工作已结束，计算整天工作时间
+                    workedMinutes = (end - start) - (lunchEnd - lunchStart);
+                } else if (status === 'working') {
+                    // 正在工作，计算到当前时间的已工作时间
+                    workedMinutes = currentMinutes - start;
+
+                    // 扣除午休时间（如果已过午休）
+                    if (currentMinutes >= lunchEnd) {
+                        workedMinutes -= (lunchEnd - lunchStart);
+                    } else if (currentMinutes >= lunchStart) {
+                        // 当前在午休时间，但状态应该是lunch，这里不应该出现
+                        workedMinutes = lunchStart - start;
+                    }
+                } else if (status === 'lunch') {
+                    // 午休时间，计算上午工作时间
+                    workedMinutes = currentMinutes - start;
+                }
+
+                // 计算薪资（精确到分）
+                // 使用秒数增加精度
+                const totalSeconds = workedMinutes * 60 + currentSeconds;
+                const earnedCents = Math.floor((totalSeconds / 3600) * hourlySalary * 100);
+
+                return earnedCents / 100; // 返回元
+            },
+
+            // 格式化金额显示（千分位，两位小数）
+            formatSalary(amount) {
+                return '¥' + amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            }
+        };
+
+        /* ========== UI渲染模块 ========== */
+        const UIRenderer = {
+            lastSalary: 0,
+
+            // 更新工资显示
+            updateSalaryDisplay() {
+                const salary = SalaryCalculator.calculateEarnedSalary();
+                const formatted = SalaryCalculator.formatSalary(salary);
+                const salaryAmount = document.getElementById('salary-amount');
+                salaryAmount.textContent = formatted;
+
+                // 添加动画效果（金额变化时）
+                if (Math.abs(salary - this.lastSalary) >= 0.01) {
+                    salaryAmount.classList.add('animate');
+                    setTimeout(() => salaryAmount.classList.remove('animate'), 100);
+                }
+                this.lastSalary = salary;
+            },
+
+            // 更新状态指示
+            updateStatusIndicator() {
+                const status = SalaryCalculator.getWorkStatus();
+                const indicator = document.getElementById('status-indicator');
+
+                const statusText = {
+                    'before-work': '⏰ 工作未开始',
+                    'working': '💰 正在赚钱',
+                    'lunch': '🍽️ 午休时间',
+                    'off-work': '🌙 工作已结束'
+                };
+
+                indicator.textContent = statusText[status];
+                indicator.className = status;
+            },
+
+            // 初始化配置面板
+            initConfigPanel() {
+                const config = ConfigManager.load();
+
+                // 薪资配置
+                document.getElementById('salary-mode').value = config.salaryMode;
+                document.getElementById('monthly-salary').value = config.monthlySalary;
+                document.getElementById('hourly-salary').value = config.hourlySalary;
+
+                // 显示/隐藏对应的薪资输入
+                this.toggleSalaryMode(config.salaryMode);
+
+                // 工作时间配置
+                document.getElementById('work-start').value = config.workStart;
+                document.getElementById('work-end').value = config.workEnd;
+                document.getElementById('lunch-start').value = config.lunchStart;
+                document.getElementById('lunch-end').value = config.lunchEnd;
+                document.getElementById('work-days').value = config.workDaysPerMonth;
+
+                // 水电费配置
+                document.getElementById('electric-price-mode').value = config.electricPriceMode;
+                this.toggleElectricPriceMode(config.electricPriceMode);
+                // 喝水换算配置
+                document.getElementById('water-bottle-mode').value = config.waterBottleMode || 'yibao-500';
+
+                // 喝水提醒配置
+                document.getElementById('water-reminder-enabled').checked = config.waterReminderEnabled;
+                const allowedIntervals = ['0.5', '10', '15', '30'];
+                const waterInterval = String(config.waterReminderInterval);
+                const normalizedWaterInterval = allowedIntervals.includes(waterInterval) ? waterInterval : '10';
+                document.getElementById('water-reminder-interval').value = normalizedWaterInterval;
+                if (waterInterval !== normalizedWaterInterval) {
+                    config.waterReminderInterval = parseFloat(normalizedWaterInterval);
+                    ConfigManager.save(config);
+                }
+
+                // 锁定配置
+                document.getElementById('lock-enabled').checked = config.lockEnabled;
+                document.getElementById('auto-lock-interval').value = config.autoLockInterval;
+            },
+
+            // 切换薪资模式显示
+            toggleSalaryMode(mode) {
+                const monthlyRow = document.getElementById('monthly-row');
+                const hourlyRow = document.getElementById('hourly-row');
+                if (mode === 'monthly') {
+                    monthlyRow.classList.remove('hidden');
+                    hourlyRow.classList.add('hidden');
+                } else {
+                    monthlyRow.classList.add('hidden');
+                    hourlyRow.classList.remove('hidden');
+                }
+            },
+
+            // 切换电费自定义显示
+            toggleElectricPriceMode(mode) {
+                const customRow = document.getElementById('custom-electric-row');
+                if (mode === 'custom') {
+                    customRow.classList.remove('hidden');
+                } else {
+                    customRow.classList.add('hidden');
+                }
+            },
+
+            // 保存配置
+            saveConfig() {
+                const config = ConfigManager.load();
+
+                // 薪资配置
+                config.salaryMode = document.getElementById('salary-mode').value;
+                config.monthlySalary = parseFloat(document.getElementById('monthly-salary').value) || 10000;
+                config.hourlySalary = parseFloat(document.getElementById('hourly-salary').value) || 50;
+
+                // 工作时间配置
+                config.workStart = document.getElementById('work-start').value;
+                config.workEnd = document.getElementById('work-end').value;
+                config.lunchStart = document.getElementById('lunch-start').value;
+                config.lunchEnd = document.getElementById('lunch-end').value;
+                config.workDaysPerMonth = parseInt(document.getElementById('work-days').value) || 22;
+
+                // 水电费配置
+                config.waterBottleMode = document.getElementById('water-bottle-mode').value;
+                config.electricPriceMode = document.getElementById('electric-price-mode').value;
+                if (config.electricPriceMode === 'civil') config.electricPrice = 0.6;
+                else if (config.electricPriceMode === 'commercial') config.electricPrice = 1.2;
+                else config.electricPrice = parseFloat(document.getElementById('electric-price').value) || 0.6;
+
+                // 喝水提醒配置
+                config.waterReminderEnabled = document.getElementById('water-reminder-enabled').checked;
+                config.waterReminderInterval = parseFloat(document.getElementById('water-reminder-interval').value) || 10;
+
+                // 锁定配置
+                config.lockEnabled = document.getElementById('lock-enabled').checked;
+                config.autoLockInterval = parseInt(document.getElementById('auto-lock-interval').value) || 0;
+
+                ConfigManager.save(config);
+                appConfig = config;
+
+                // 同步锁定定时器（间隔变化后立即生效）
+                NumberLock.applyLockSettings();
+
+                // 保存后自动收起设置面板
+                document.getElementById('config-content').classList.add('hidden');
+
+                // 提示保存成功
+                showToast('设置已保存！');
+            }
+        };
+
+        /* ========== 主应用初始化 ========== */
+        const App = {
+            updateInterval: null,
+
+            init() {
+                // 初始化配置面板
+                UIRenderer.initConfigPanel();
+
+                // 绑定事件
+                this.bindEvents();
+
+                // 启动更新循环
+                this.startUpdateLoop();
+            },
+
+            bindEvents() {
+                // 设置面板展开/收起
+                document.getElementById('toggle-config').addEventListener('click', () => {
+                    const content = document.getElementById('config-content');
+                    content.classList.toggle('hidden');
+                });
+
+                // 薪资模式切换
+                document.getElementById('salary-mode').addEventListener('change', (e) => {
+                    UIRenderer.toggleSalaryMode(e.target.value);
+                });
+
+                // 电费模式切换
+                document.getElementById('electric-price-mode').addEventListener('change', (e) => {
+                    UIRenderer.toggleElectricPriceMode(e.target.value);
+                });
+
+                // 保存配置
+                document.getElementById('save-config').addEventListener('click', () => {
+                    UIRenderer.saveConfig();
+                });
+
+                // 修改锁屏密码
+                document.getElementById('change-lock-password').addEventListener('click', () => {
+                    NumberLock.showChangePasswordModal();
+                });
+            },
+
+            startUpdateLoop() {
+                // 立即更新一次
+                this.update();
+
+                // 每100毫秒更新
+                this.updateInterval = setInterval(() => this.update(), 100);
+            },
+
+            update() {
+                UIRenderer.updateSalaryDisplay();
+                UIRenderer.updateStatusIndicator();
+            }
+        };
+
+        /* ========== 薅羊毛数据管理模块 ========== */
+        const WoolDataManager = {
+            STORAGE_KEY: 'woolHistory',
+
+            // 获取今日日期字符串
+            getTodayStr() {
+                return new Date().toISOString().split('T')[0];
+            },
+
+            // 加载薅羊毛历史数据
+            load() {
+                try {
+                    const saved = localStorage.getItem(this.STORAGE_KEY);
+                    if (saved) {
+                        return JSON.parse(saved);
+                    }
+                } catch (e) {
+                    console.error('加载薅羊毛数据失败:', e);
+                }
+                return { records: [], stats: { totalDays: 0, totalWaterMl: 0, totalElectricKwh: 0, totalFishMinutes: 0, totalWoolMoney: 0 } };
+            },
+
+            // 保存薅羊毛数据
+            save(data) {
+                try {
+                    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+                } catch (e) {
+                    console.error('保存薅羊毛数据失败:', e);
+                }
+            },
+
+            // 获取今日记录
+            getTodayRecord() {
+                const data = this.load();
+                const today = this.getTodayStr();
+                return data.records.find(r => r.date === today) || {
+                    date: today,
+                    water: { amount: 0, money: 0 },
+                    electric: { devices: [], totalKwh: 0, money: 0 },
+                    fish: { items: [], totalMinutes: 0, money: 0 },
+                    totalWool: 0
+                };
+            },
+
+            // 添加喝水记录
+            addWaterRecord(ml) {
+                const config = ConfigManager.load();
+                const data = this.load();
+                const today = this.getTodayStr();
+
+                // 喝水换算：按瓶装怡宝价格比例折算
+                // - 500ml / 3元
+                // - 1500ml / 5元（打折）
+                const bottle = config.waterBottleMode === 'yibao-1500'
+                    ? { ml: 1500, price: 5 }
+                    : { ml: 500, price: 3 };
+                const money = (ml / bottle.ml) * bottle.price;
+
+                let todayRecord = data.records.find(r => r.date === today);
+                if (!todayRecord) {
+                    todayRecord = this.getTodayRecord();
+                    data.records.push(todayRecord);
+                }
+
+                todayRecord.water.amount += ml;
+                todayRecord.water.money += money;
+                this.updateTotalWool(todayRecord);
+                this.updateStats(data);
+
+                this.save(data);
+                return money;
+            },
+
+            // 添加充电记录
+            addElectricRecord(deviceType, count) {
+                const config = ConfigManager.load();
+                const data = this.load();
+                const today = this.getTodayStr();
+
+                // 设备电量预设值（度）
+                const deviceKwh = {
+                    'small-phone': 0.01,
+                    'large-phone': 0.02,
+                    'tablet': 0.03,
+                    'laptop': 0.05,
+                    'earphone': 0.002
+                };
+
+                const kwh = deviceKwh[deviceType] * count;
+                const money = kwh * config.electricPrice;
+
+                let todayRecord = data.records.find(r => r.date === today);
+                if (!todayRecord) {
+                    todayRecord = this.getTodayRecord();
+                    data.records.push(todayRecord);
+                }
+
+                todayRecord.electric.devices.push({ type: deviceType, count, kwh, money });
+                todayRecord.electric.totalKwh += kwh;
+                todayRecord.electric.money += money;
+                this.updateTotalWool(todayRecord);
+                this.updateStats(data);
+
+                this.save(data);
+                return money;
+            },
+
+            // 添加摸鱼记录
+            addFishRecord(type, minutes) {
+                const config = ConfigManager.load();
+                const data = this.load();
+                const today = this.getTodayStr();
+
+                const hourlySalary = ConfigManager.getHourlySalary();
+                const money = (minutes / 60) * hourlySalary;
+
+                let todayRecord = data.records.find(r => r.date === today);
+                if (!todayRecord) {
+                    todayRecord = this.getTodayRecord();
+                    data.records.push(todayRecord);
+                }
+
+                todayRecord.fish.items.push({ type, minutes, money });
+                todayRecord.fish.totalMinutes += minutes;
+                todayRecord.fish.money += money;
+                this.updateTotalWool(todayRecord);
+                this.updateStats(data);
+
+                this.save(data);
+                return money;
+            },
+
+            // 更新今日总薅羊毛金额
+            updateTotalWool(record) {
+                record.totalWool = record.water.money + record.electric.money + record.fish.money;
+            },
+
+            // 更新统计数据
+            updateStats(data) {
+                data.stats.totalDays = data.records.length;
+                data.stats.totalWaterMl = data.records.reduce((sum, r) => sum + r.water.amount, 0);
+                data.stats.totalElectricKwh = data.records.reduce((sum, r) => sum + r.electric.totalKwh, 0);
+                data.stats.totalFishMinutes = data.records.reduce((sum, r) => sum + r.fish.totalMinutes, 0);
+                data.stats.totalWoolMoney = data.records.reduce((sum, r) => sum + r.totalWool, 0);
+            },
+
+            // 获取本周统计
+            getWeekStats() {
+                const data = this.load();
+                const today = new Date();
+                const weekStart = new Date(today);
+                weekStart.setDate(today.getDate() - today.getDay());
+                weekStart.setHours(0, 0, 0, 0);
+
+                const weekRecords = data.records.filter(r => {
+                    const recordDate = new Date(r.date);
+                    return recordDate >= weekStart;
+                });
+
+                return {
+                    totalWaterMl: weekRecords.reduce((sum, r) => sum + r.water.amount, 0),
+                    totalElectricKwh: weekRecords.reduce((sum, r) => sum + r.electric.totalKwh, 0),
+                    totalFishMinutes: weekRecords.reduce((sum, r) => sum + r.fish.totalMinutes, 0),
+                    totalWoolMoney: weekRecords.reduce((sum, r) => sum + r.totalWool, 0),
+                    days: weekRecords.length
+                };
+            },
+
+            // 获取本月统计
+            getMonthStats() {
+                const data = this.load();
+                const today = new Date();
+                const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+
+                const monthRecords = data.records.filter(r => {
+                    const recordDate = new Date(r.date);
+                    return recordDate >= monthStart;
+                });
+
+                return {
+                    totalWaterMl: monthRecords.reduce((sum, r) => sum + r.water.amount, 0),
+                    totalElectricKwh: monthRecords.reduce((sum, r) => sum + r.electric.totalKwh, 0),
+                    totalFishMinutes: monthRecords.reduce((sum, r) => sum + r.fish.totalMinutes, 0),
+                    totalWoolMoney: monthRecords.reduce((sum, r) => sum + r.totalWool, 0),
+                    days: monthRecords.length
+                };
+            },
+
+            // 清除旧数据（超过90天）
+            cleanOldData() {
+                const data = this.load();
+                const today = new Date();
+                const cutoff = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
+
+                data.records = data.records.filter(r => {
+                    const recordDate = new Date(r.date);
+                    return recordDate >= cutoff;
+                });
+
+                this.updateStats(data);
+                this.save(data);
+            }
+        };
+
+        /* ========== 弹窗管理模块 ========== */
+        const ModalManager = {
+            show(contentHTML) {
+                const container = document.getElementById('modal-container');
+                const content = document.getElementById('modal-content');
+                content.innerHTML = contentHTML;
+                container.classList.remove('hidden');
+            },
+
+            hide() {
+                const container = document.getElementById('modal-container');
+                container.classList.add('hidden');
+            },
+
+            // 显示喝水记录面板
+            showWaterModal() {
+                const html = `
+                    <div class="record-panel">
+                        <h2>💧 记录喝水</h2>
+                        <p>选择喝水量：</p>
+                        <div class="quick-options">
+                            <button data-ml="100">100ml</button>
+                            <button data-ml="250">250ml</button>
+                            <button data-ml="500">500ml</button>
+                            <button data-ml="1000">1000ml</button>
+                        </div>
+                        <div class="custom-input">
+                            <input type="number" id="custom-water" placeholder="自定义(ml)" min="1">
+                            <button id="add-custom-water" class="btn-primary">添加</button>
+                        </div>
+                        <div class="modal-buttons">
+                            <button class="btn-secondary" onclick="ModalManager.hide()">关闭</button>
+                        </div>
+                    </div>
+                `;
+                this.show(html);
+                this.bindWaterEvents();
+            },
+
+            bindWaterEvents() {
+                // 快捷选项
+                document.querySelectorAll('.quick-options button[data-ml]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const ml = parseInt(btn.dataset.ml);
+                        const money = WoolDataManager.addWaterRecord(ml);
+                        this.hide();
+                        showToast(`喝${ml}ml水，薅羊毛 ¥${money.toFixed(4)}`);
+                    });
+                });
+
+                // 自定义输入
+                document.getElementById('add-custom-water').addEventListener('click', () => {
+                    const ml = parseInt(document.getElementById('custom-water').value);
+                    if (ml > 0) {
+                        const money = WoolDataManager.addWaterRecord(ml);
+                        this.hide();
+                        showToast(`喝${ml}ml水，薅羊毛 ¥${money.toFixed(4)}`);
+                    }
+                });
+            },
+
+            // 显示充电记录面板
+            showElectricModal() {
+                const html = `
+                    <div class="record-panel">
+                        <h2>⚡ 记录充电</h2>
+                        <p>选择设备和充电次数：</p>
+                        <div class="quick-options">
+                            <button data-device="small-phone">小手机×1 (~0.01度)</button>
+                            <button data-device="large-phone">大手机×1 (~0.02度)</button>
+                            <button data-device="tablet">平板×1 (~0.03度)</button>
+                            <button data-device="laptop">笔记本×1小时 (~0.05度)</button>
+                            <button data-device="earphone">耳机×1 (~0.002度)</button>
+                        </div>
+                        <div class="custom-input">
+                            <select id="device-type">
+                                <option value="small-phone">小手机</option>
+                                <option value="large-phone">大手机</option>
+                                <option value="tablet">平板</option>
+                                <option value="laptop">笔记本(1小时)</option>
+                                <option value="earphone">耳机</option>
+                            </select>
+                            <input type="number" id="charge-count" placeholder="次数" min="1" value="1">
+                            <button id="add-custom-charge" class="btn-primary">添加</button>
+                        </div>
+                        <div class="modal-buttons">
+                            <button class="btn-secondary" onclick="ModalManager.hide()">关闭</button>
+                        </div>
+                    </div>
+                `;
+                this.show(html);
+                this.bindElectricEvents();
+            },
+
+            bindElectricEvents() {
+                // 快捷选项
+                document.querySelectorAll('.quick-options button[data-device]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const device = btn.dataset.device;
+                        const money = WoolDataManager.addElectricRecord(device, 1);
+                        this.hide();
+                        const deviceNames = {
+                            'small-phone': '小手机',
+                            'large-phone': '大手机',
+                            'tablet': '平板',
+                            'laptop': '笔记本',
+                            'earphone': '耳机'
+                        };
+                        showToast(`充${deviceNames[device]}，薅羊毛 ¥${money.toFixed(4)}`);
+                    });
+                });
+
+                // 自定义输入
+                document.getElementById('add-custom-charge').addEventListener('click', () => {
+                    const device = document.getElementById('device-type').value;
+                    const count = parseInt(document.getElementById('charge-count').value) || 1;
+                    const money = WoolDataManager.addElectricRecord(device, count);
+                    this.hide();
+                    const deviceNames = {
+                        'small-phone': '小手机',
+                        'large-phone': '大手机',
+                        'tablet': '平板',
+                        'laptop': '笔记本',
+                        'earphone': '耳机'
+                    };
+                    showToast(`充${deviceNames[device]}×${count}次，薅羊毛 ¥${money.toFixed(4)}`);
+                });
+            },
+
+            // 显示摸鱼记录面板
+            showFishModal() {
+                const html = `
+                    <div class="record-panel">
+                        <h2>🐟 记录摸鱼</h2>
+                        <p>选择摸鱼类型和时长：</p>
+                        <div class="config-row">
+                            <label>摸鱼类型</label>
+                            <select id="fish-type">
+                                <option value="上厕所">上厕所</option>
+                                <option value="下楼溜达">下楼溜达</option>
+                                <option value="接水泡咖啡">接水泡咖啡</option>
+                                <option value="刷手机">刷手机</option>
+                                <option value="和同事聊天">和同事聊天</option>
+                                <option value="其他">其他</option>
+                            </select>
+                        </div>
+                        <p>快捷时长：</p>
+                        <div class="quick-options">
+                            <button data-minutes="5">5分钟</button>
+                            <button data-minutes="10">10分钟</button>
+                            <button data-minutes="15">15分钟</button>
+                            <button data-minutes="30">30分钟</button>
+                        </div>
+                        <div class="custom-input">
+                            <input type="number" id="custom-minutes" placeholder="自定义(分钟)" min="1">
+                            <button id="add-custom-fish" class="btn-primary">添加</button>
+                        </div>
+                        <div class="modal-buttons">
+                            <button class="btn-secondary" onclick="ModalManager.hide()">关闭</button>
+                        </div>
+                    </div>
+                `;
+                this.show(html);
+                this.bindFishEvents();
+            },
+
+            bindFishEvents() {
+                // 快捷时长选项
+                document.querySelectorAll('.quick-options button[data-minutes]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const minutes = parseInt(btn.dataset.minutes);
+                        const type = document.getElementById('fish-type').value;
+                        const money = WoolDataManager.addFishRecord(type, minutes);
+                        this.hide();
+                        showToast(`${type} ${minutes}分钟，薅羊毛 ¥${money.toFixed(2)}`);
+                    });
+                });
+
+                // 自定义输入
+                document.getElementById('add-custom-fish').addEventListener('click', () => {
+                    const minutes = parseInt(document.getElementById('custom-minutes').value);
+                    const type = document.getElementById('fish-type').value;
+                    if (minutes > 0) {
+                        const money = WoolDataManager.addFishRecord(type, minutes);
+                        this.hide();
+                        showToast(`${type} ${minutes}分钟，薅羊毛 ¥${money.toFixed(2)}`);
+                    }
+                });
+            },
+
+            // 显示历史记录面板
+            showHistoryModal() {
+                const today = WoolDataManager.getTodayRecord();
+                const week = WoolDataManager.getWeekStats();
+                const month = WoolDataManager.getMonthStats();
+
+                const html = `
+                    <div class="record-panel">
+                        <h2>📊 薅羊毛战绩</h2>
+
+                        <h3>今日战绩 (${today.date})</h3>
+                        <div class="stats-card">
+                            <p>💧 喝水：${today.water.amount}ml，赚 ¥${today.water.money.toFixed(4)}</p>
+                            <p>⚡ 充电：${today.electric.totalKwh.toFixed(3)}度，赚 ¥${today.electric.money.toFixed(4)}</p>
+                            <p>🐟 摸鱼：${today.fish.totalMinutes}分钟，赚 ¥${today.fish.money.toFixed(2)}</p>
+                            <p><strong>今日总计：¥${today.totalWool.toFixed(4)}</strong></p>
+                        </div>
+
+                        <h3>本周战绩</h3>
+                        <div class="stats-card">
+                            <p>共${week.days}天，薅羊毛 ¥${week.totalWoolMoney.toFixed(2)}</p>
+                            <p>喝水${(week.totalWaterMl/1000).toFixed(1)}L，摸鱼${week.totalFishMinutes}分钟</p>
+                        </div>
+
+                        <h3>本月战绩</h3>
+                        <div class="stats-card">
+                            <p>共${month.days}天，薅羊毛 ¥${month.totalWoolMoney.toFixed(2)}</p>
+                            <p>喝水${(month.totalWaterMl/1000).toFixed(1)}L，摸鱼${month.totalFishMinutes}分钟</p>
+                        </div>
+
+                        <div class="modal-buttons">
+                            <button class="btn-secondary" onclick="ModalManager.hide()">关闭</button>
+                        </div>
+                    </div>
+                `;
+                this.show(html);
+            }
+        };
+
+        /* ========== 喝水提醒模块 ========== */
+        const WaterReminder = {
+            reminderTimeout: null,
+
+            init() {
+                const config = ConfigManager.load();
+                if (config.waterReminderEnabled && SalaryCalculator.isWorkingTime()) {
+                    this.startReminder(config.waterReminderInterval);
+                }
+            },
+
+            startReminder(intervalMinutes) {
+                // 清除之前的定时器
+                if (this.reminderTimeout) {
+                    clearTimeout(this.reminderTimeout);
+                }
+
+                this.reminderTimeout = setTimeout(() => {
+                    this.showReminder();
+                }, intervalMinutes * 60 * 1000);
+            },
+
+            showReminder() {
+                const config = ConfigManager.load();
+                // 只在工作时间内提醒
+                if (!SalaryCalculator.isWorkingTime() || !config.waterReminderEnabled) {
+                    return;
+                }
+
+                const reminder = document.getElementById('water-reminder');
+                const content = document.getElementById('reminder-content');
+
+                content.innerHTML = `
+                    <h3>💧 该喝水啦！</h3>
+                    <p>休息一下，喝杯水吧~</p>
+                    <div class="water-options">
+                        <button data-ml="100">100ml</button>
+                        <button data-ml="250">250ml</button>
+                        <button data-ml="500">500ml</button>
+                    </div>
+                    <div style="margin-top: 12px;">
+                        <button id="later-reminder" class="btn-secondary">稍后</button>
+                        <button id="close-reminder" class="btn-secondary">关闭</button>
+                    </div>
+                `;
+
+                reminder.classList.remove('hidden');
+                this.bindReminderEvents();
+
+                // 5秒后自动收起
+                setTimeout(() => {
+                    if (!reminder.classList.contains('hidden')) {
+                        reminder.classList.add('hidden');
+                        this.startReminder(10); // 10分钟后再次提醒
+                    }
+                }, 5000);
+            },
+
+            bindReminderEvents() {
+                // 喝水按钮
+                document.querySelectorAll('.water-options button[data-ml]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const ml = parseInt(btn.dataset.ml);
+                        WoolDataManager.addWaterRecord(ml);
+                        document.getElementById('water-reminder').classList.add('hidden');
+                        // 重置提醒计时
+                        const config = ConfigManager.load();
+                        this.startReminder(config.waterReminderInterval);
+                    });
+                });
+
+                // 稍后按钮
+                document.getElementById('later-reminder').addEventListener('click', () => {
+                    document.getElementById('water-reminder').classList.add('hidden');
+                    this.startReminder(10); // 10分钟后再次提醒
+                });
+
+                // 关闭按钮
+                document.getElementById('close-reminder').addEventListener('click', () => {
+                    document.getElementById('water-reminder').classList.add('hidden');
+                    // 本轮工作不再提醒
+                });
+            },
+
+            // 重置提醒（用户操作后调用）
+            resetReminder() {
+                const config = ConfigManager.load();
+                if (config.waterReminderEnabled) {
+                    this.startReminder(config.waterReminderInterval);
+                }
+            }
+        };
+
+        // 更新薅羊毛汇总显示
+        function updateWoolSummary() {
+            const todayRecord = WoolDataManager.getTodayRecord();
+            const woolSummary = document.getElementById('wool-summary');
+            const salary = SalaryCalculator.calculateEarnedSalary();
+            const total = salary + todayRecord.totalWool;
+
+            woolSummary.innerHTML = `
+                <span class="wool-amount">薅羊毛 ¥${todayRecord.totalWool.toFixed(2)}</span>
+                <span class="total-amount">今日总收益 ¥${total.toFixed(2)}</span>
+            `;
+        }
+
+        // 绑定薅羊毛按钮事件
+        function bindWoolButtons() {
+            document.getElementById('btn-water').addEventListener('click', () => {
+                ModalManager.showWaterModal();
+            });
+
+            document.getElementById('btn-charge').addEventListener('click', () => {
+                ModalManager.showElectricModal();
+            });
+
+            document.getElementById('btn-fish').addEventListener('click', () => {
+                ModalManager.showFishModal();
+            });
+
+            document.getElementById('btn-history').addEventListener('click', () => {
+                ModalManager.showHistoryModal();
+            });
+        }
+
+        /* ========== 隐私保护模块 ========== */
+        const NumberLock = {
+            password: '',
+            setupMode: false,
+            changePasswordMode: false,
+            disableLockMode: false,
+            changeStep: 'verify-old', // verify-old -> new-password -> confirm-new-password
+            firstPassword: '',
+            autoLockTimer: null,
+            autoLockCountdownTimer: null,
+            autoLockDeadline: 0,
+            autoLockDurationMs: 0,
+            isLocked: false,  // 当前是否锁定状态
+            onDisableLockSuccess: null,
+
+            // 初始化密码锁
+            init() {
+                const config = ConfigManager.load();
+                const lockEnabled = config.lockEnabled;
+
+                // 右下角锁定按钮始终显示
+                const lockBtn = document.getElementById('lock-toggle-btn');
+                this.updateLockBtnState(lockEnabled);
+
+                // 绑定锁定按钮点击事件
+                lockBtn.addEventListener('click', () => {
+                    const currentConfig = ConfigManager.load();
+
+                    // 已有密码：确保锁功能为开启态后立即锁屏
+                    if (currentConfig.lockPassword) {
+                        if (!currentConfig.lockEnabled) {
+                            currentConfig.lockEnabled = true;
+                            ConfigManager.save(currentConfig);
+                        }
+                        document.getElementById('lock-enabled').checked = true;
+                        this.updateLockBtnState(true);
+                        this.showLockScreen();
+                        return;
+                    }
+
+                    // 无密码：手动锁屏等价于“启用锁 + 九宫格设置密码”
+                    if (!currentConfig.lockEnabled) {
+                        currentConfig.lockEnabled = true;
+                        ConfigManager.save(currentConfig);
+                    }
+                    document.getElementById('lock-enabled').checked = true;
+                    this.updateLockBtnState(true);
+                    this.showSetupPassword();
+                });
+
+                // 刷新页面后：只要启用了密码锁且已有密码，立即保持锁屏状态
+                if (lockEnabled && config.lockPassword) {
+                    this.showLockScreen();
+                    return;
+                }
+
+                // 启动自动锁定倒计时（仅在未锁屏状态）
+                if (lockEnabled && config.autoLockInterval > 0) {
+                    this.startAutoLock(config.autoLockInterval);
+                }
+
+                // 检查是否需要设置密码
+                if (lockEnabled && !config.lockPassword) {
+                    // 不立即弹出设置，等用户点击锁定按钮时设置
+                }
+            },
+
+            updateAutoLockIndicator(remainingMs, totalMs) {
+                const countdown = document.getElementById('auto-lock-countdown');
+                const secondsText = document.getElementById('auto-lock-seconds');
+                if (!countdown || !secondsText) return;
+
+                if (remainingMs <= 0 || totalMs <= 0 || this.isLocked) {
+                    countdown.classList.add('hidden');
+                    return;
+                }
+
+                const seconds = Math.max(0, Math.ceil(remainingMs / 1000));
+                const progressRatio = Math.max(0, Math.min(1, remainingMs / totalMs));
+                const progressDeg = progressRatio * 360;
+
+                secondsText.textContent = `${seconds}s`;
+                countdown.style.setProperty('--countdown-progress', `${progressDeg}deg`);
+                countdown.classList.remove('hidden');
+            },
+
+            hideAutoLockIndicator() {
+                const countdown = document.getElementById('auto-lock-countdown');
+                if (countdown) {
+                    countdown.classList.add('hidden');
+                }
+            },
+
+            // 更新锁定按钮状态
+            updateLockBtnState(enabled) {
+                const lockBtn = document.getElementById('lock-toggle-btn');
+                if (enabled) {
+                    lockBtn.classList.add('locked');
+                } else {
+                    lockBtn.classList.remove('locked');
+                }
+            },
+
+            // 更新密码显示点
+            updatePasswordDisplay() {
+                const dots = document.querySelectorAll('#password-display .password-dot');
+                dots.forEach((dot, index) => {
+                    if (index < this.password.length) {
+                        dot.classList.add('filled');
+                    } else {
+                        dot.classList.remove('filled');
+                    }
+                });
+            },
+
+            // 绑定键盘事件（只绑定一次）
+            bindKeypadEvents() {
+                // 防止重复绑定，先移除旧的事件
+                document.querySelectorAll('.keypad-btn').forEach(btn => {
+                    btn.replaceWith(btn.cloneNode(true));
+                });
+
+                document.querySelectorAll('.keypad-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const num = btn.dataset.num;
+                        const action = btn.dataset.action;
+
+                        if (num !== undefined) {
+                            // 输入数字
+                            if (this.password.length < 6) {
+                                this.password += num;
+                                this.updatePasswordDisplay();
+
+                                // 输入满6位后自动验证
+                                if (this.password.length === 6) {
+                                    if (this.setupMode) {
+                                        this.handleSetupPassword();
+                                    } else if (this.changePasswordMode) {
+                                        this.handleChangePassword();
+                                    } else if (this.disableLockMode) {
+                                        this.handleDisableLockVerification();
+                                    } else {
+                                        this.verifyPassword();
+                                    }
+                                }
+                            }
+                        } else if (action === 'delete') {
+                            // 删除最后一位
+                            this.password = this.password.slice(0, -1);
+                            this.updatePasswordDisplay();
+                        } else if (action === 'clear') {
+                            // 清空全部
+                            this.password = '';
+                            this.updatePasswordDisplay();
+                        }
+                    });
+                });
+            },
+
+            // 设置密码流程
+            handleSetupPassword() {
+                const hint = document.getElementById('lock-hint');
+
+                if (this.firstPassword === '') {
+                    // 第一次输入
+                    this.firstPassword = this.password;
+                    hint.textContent = '请再次输入密码以确认';
+                    this.password = '';
+                    this.updatePasswordDisplay();
+                } else {
+                    // 第二次输入，验证是否一致
+                    if (this.password === this.firstPassword) {
+                        // 密码一致，保存
+                        const config = ConfigManager.load();
+                        config.lockPassword = this.password;
+                        config.lockEnabled = true;  // 确保锁定已启用
+                        ConfigManager.save(config);
+                        this.setupMode = false;
+                        this.firstPassword = '';
+
+                        hint.textContent = '密码设置成功！';
+
+                        // 更新锁定按钮状态
+                        this.updateLockBtnState(true);
+
+                        // 启动自动锁定（如果设置了）
+                        if (config.autoLockInterval > 0) {
+                            this.startAutoLock(config.autoLockInterval);
+                        }
+
+                        // 更新设置面板的checkbox状态
+                        document.getElementById('lock-enabled').checked = true;
+
+                        // 1秒后隐藏锁定界面
+                        setTimeout(() => {
+                            this.hideLockScreen();
+                            showToast('密码锁设置成功！可以点击右下角🔒按钮锁屏');
+                        }, 1000);
+                    } else {
+                        // 密码不一致
+                        hint.textContent = '密码不一致，请重新设置';
+                        this.firstPassword = '';
+                        this.password = '';
+                        this.updatePasswordDisplay();
+                    }
+                }
+            },
+
+            // 验证密码
+            verifyPassword() {
+                const config = ConfigManager.load();
+                const savedPassword = config.lockPassword;
+
+                if (this.password === savedPassword) {
+                    // 密码正确，解锁
+                    this.hideLockScreen();
+                    // 重置自动锁定计时器
+                    this.resetAutoLock();
+                } else {
+                    // 密码错误
+                    document.getElementById('lock-hint').textContent = '密码错误，请重试';
+                    this.password = '';
+                    this.updatePasswordDisplay();
+                }
+            },
+
+            // 九宫格修改密码流程
+            handleChangePassword() {
+                const hint = document.getElementById('lock-hint');
+                const config = ConfigManager.load();
+
+                if (this.changeStep === 'verify-old') {
+                    if (this.password !== config.lockPassword) {
+                        hint.textContent = '旧密码错误，请重试';
+                        this.password = '';
+                        this.updatePasswordDisplay();
+                        return;
+                    }
+                    this.changeStep = 'new-password';
+                    hint.textContent = '请输入新的6位数字密码';
+                    this.password = '';
+                    this.updatePasswordDisplay();
+                    return;
+                }
+
+                if (this.changeStep === 'new-password') {
+                    if (this.password === config.lockPassword) {
+                        hint.textContent = '新密码不能与旧密码相同，请重新输入';
+                        this.password = '';
+                        this.updatePasswordDisplay();
+                        return;
+                    }
+                    this.firstPassword = this.password;
+                    this.changeStep = 'confirm-new-password';
+                    hint.textContent = '请再次输入新密码确认';
+                    this.password = '';
+                    this.updatePasswordDisplay();
+                    return;
+                }
+
+                // confirm-new-password
+                if (this.password !== this.firstPassword) {
+                    hint.textContent = '两次新密码不一致，请重新输入';
+                    this.changeStep = 'new-password';
+                    this.firstPassword = '';
+                    this.password = '';
+                    this.updatePasswordDisplay();
+                    return;
+                }
+
+                config.lockPassword = this.password;
+                ConfigManager.save(config);
+
+                hint.textContent = '密码修改成功！';
+                this.changePasswordMode = false;
+                this.changeStep = 'verify-old';
+                this.firstPassword = '';
+                this.password = '';
+                this.updatePasswordDisplay();
+
+                setTimeout(() => {
+                    this.hideLockScreen();
+                    showToast('锁屏密码已更新');
+                }, 800);
+            },
+
+            // 九宫格关闭密码锁验证流程
+            handleDisableLockVerification() {
+                const hint = document.getElementById('lock-hint');
+                const config = ConfigManager.load();
+
+                if (this.password !== config.lockPassword) {
+                    hint.textContent = '密码错误，无法关闭密码锁';
+                    this.password = '';
+                    this.updatePasswordDisplay();
+                    return;
+                }
+
+                // 校验通过：关闭锁并清空密码
+                config.lockEnabled = false;
+                config.lockPassword = null;
+                ConfigManager.save(config);
+
+                hint.textContent = '验证成功，正在关闭密码锁...';
+                this.disableLockMode = false;
+                this.password = '';
+                this.updatePasswordDisplay();
+
+                setTimeout(() => {
+                    this.hideLockScreen();
+                    this.stopAutoLock();
+                    this.updateLockBtnState(false);
+                    document.getElementById('lock-enabled').checked = false;
+
+                    if (typeof this.onDisableLockSuccess === 'function') {
+                        this.onDisableLockSuccess();
+                    }
+                    this.onDisableLockSuccess = null;
+
+                    showToast('密码锁已关闭，旧密码已清空');
+                }, 500);
+            },
+
+            // 显示密码设置界面
+            showSetupPassword() {
+                this.stopAutoLock();
+                this.setupMode = true;
+                this.changePasswordMode = false;
+                this.disableLockMode = false;
+                this.changeStep = 'verify-old';
+                this.firstPassword = '';
+                this.password = '';
+
+                const lockScreen = document.getElementById('lock-screen');
+                const lockInfo = document.getElementById('lock-info');
+                const lockHint = document.getElementById('lock-hint');
+                const forgotBtn = document.getElementById('forgot-password');
+
+                lockInfo.textContent = '🔒 设置6位数字密码';
+                lockHint.textContent = '请输入6位数字密码';
+                forgotBtn.classList.add('hidden');
+
+                this.updatePasswordDisplay();
+                this.bindKeypadEvents();
+                lockScreen.classList.remove('hidden');
+
+                // 标记锁定状态
+                this.isLocked = true;
+                sessionStorage.setItem('isLocked', 'true');
+                TitleManager.update();
+            },
+
+            // 显示锁定界面
+            showLockScreen() {
+                this.stopAutoLock();
+                this.password = '';
+                this.setupMode = false;
+                this.changePasswordMode = false;
+                this.disableLockMode = false;
+                this.changeStep = 'verify-old';
+
+                const lockScreen = document.getElementById('lock-screen');
+                const lockInfo = document.getElementById('lock-info');
+                const lockHint = document.getElementById('lock-hint');
+                const forgotBtn = document.getElementById('forgot-password');
+
+                // 显示伪装的工作时长信息
+                const config = ConfigManager.load();
+                const now = new Date();
+                const workStart = config.workStart;
+                const startParts = workStart.split(':').map(Number);
+                const startTime = new Date();
+                startTime.setHours(startParts[0], startParts[1], 0, 0);
+
+                let workedMs = now - startTime;
+                if (workedMs < 0) workedMs = 0;
+
+                const workedHours = Math.floor(workedMs / (1000 * 60 * 60));
+                const workedMinutes = Math.floor((workedMs % (1000 * 60 * 60)) / (1000 * 60));
+
+                lockInfo.textContent = `已工作 ${workedHours} 小时 ${workedMinutes} 分钟`;
+                lockHint.textContent = '请输入6位数字密码解锁';
+                forgotBtn.classList.remove('hidden');
+
+                this.updatePasswordDisplay();
+                this.bindKeypadEvents();
+                lockScreen.classList.remove('hidden');
+
+                // 标记锁定状态
+                this.isLocked = true;
+                sessionStorage.setItem('isLocked', 'true');
+                TitleManager.update();
+            },
+
+            // 隐藏锁定界面
+            hideLockScreen() {
+                const lockScreen = document.getElementById('lock-screen');
+                lockScreen.classList.add('hidden');
+                this.password = '';
+                this.setupMode = false;
+                this.changePasswordMode = false;
+                this.disableLockMode = false;
+                this.changeStep = 'verify-old';
+                this.firstPassword = '';
+                this.isLocked = false;
+                sessionStorage.setItem('isLocked', 'false');
+
+                // 解锁后重新启动自动锁定
+                const config = ConfigManager.load();
+                if (config.lockEnabled && config.autoLockInterval > 0) {
+                    this.startAutoLock(config.autoLockInterval);
+                }
+                TitleManager.update();
+            },
+
+            // 自动锁定（固定时间，不管用户操作）
+            startAutoLock(intervalSeconds) {
+                const config = ConfigManager.load();
+                if (
+                    intervalSeconds <= 0 ||
+                    !config.lockEnabled ||
+                    !config.lockPassword ||
+                    this.isLocked
+                ) {
+                    this.stopAutoLock();
+                    return;
+                }
+
+                this.stopAutoLock();
+
+                this.autoLockDurationMs = intervalSeconds * 1000;
+                this.autoLockDeadline = Date.now() + this.autoLockDurationMs;
+
+                const tick = () => {
+                    const remainingMs = this.autoLockDeadline - Date.now();
+                    if (remainingMs <= 0) {
+                        this.stopAutoLock();
+                        const latestConfig = ConfigManager.load();
+                        if (latestConfig.lockEnabled && latestConfig.lockPassword) {
+                            this.showLockScreen();
+                        }
+                        return;
+                    }
+                    this.updateAutoLockIndicator(remainingMs, this.autoLockDurationMs);
+                };
+
+                // 立即渲染一次，避免首帧空白
+                tick();
+
+                // 倒计时显示与兜底触发（避免偶发 setTimeout 丢触发）
+                this.autoLockCountdownTimer = setInterval(tick, 200);
+                this.autoLockTimer = setTimeout(() => {
+                    tick();
+                }, this.autoLockDurationMs + 100);
+            },
+
+            resetAutoLock() {
+                const config = ConfigManager.load();
+                this.startAutoLock(config.autoLockInterval);
+            },
+
+            stopAutoLock() {
+                if (this.autoLockTimer) {
+                    clearTimeout(this.autoLockTimer);
+                    this.autoLockTimer = null;
+                }
+                if (this.autoLockCountdownTimer) {
+                    clearInterval(this.autoLockCountdownTimer);
+                    this.autoLockCountdownTimer = null;
+                }
+                this.autoLockDeadline = 0;
+                this.autoLockDurationMs = 0;
+                this.hideAutoLockIndicator();
+            },
+
+            // 使用九宫格校验当前密码后关闭密码锁
+            showDisableLockVerification(onSuccess) {
+                const config = ConfigManager.load();
+
+                // 没有已设置密码时，直接关闭锁定
+                if (!config.lockPassword) {
+                    config.lockEnabled = false;
+                    ConfigManager.save(config);
+                    this.stopAutoLock();
+                    if (this.isLocked) {
+                        this.hideLockScreen();
+                    }
+                    showToast('已关闭密码锁');
+                    if (typeof onSuccess === 'function') {
+                        onSuccess();
+                    }
+                    TitleManager.update();
+                    return;
+                }
+
+                this.stopAutoLock();
+                this.setupMode = false;
+                this.changePasswordMode = false;
+                this.disableLockMode = true;
+                this.changeStep = 'verify-old';
+                this.firstPassword = '';
+                this.password = '';
+                this.onDisableLockSuccess = onSuccess || null;
+
+                const lockScreen = document.getElementById('lock-screen');
+                const lockInfo = document.getElementById('lock-info');
+                const lockHint = document.getElementById('lock-hint');
+                const forgotBtn = document.getElementById('forgot-password');
+
+                lockInfo.textContent = '🔓 关闭密码锁';
+                lockHint.textContent = '请输入当前6位密码确认关闭';
+                forgotBtn.classList.add('hidden');
+
+                this.updatePasswordDisplay();
+                this.bindKeypadEvents();
+                lockScreen.classList.remove('hidden');
+
+                this.isLocked = true;
+                sessionStorage.setItem('isLocked', 'true');
+                TitleManager.update();
+            },
+
+            // 根据最新配置统一应用锁定设置
+            applyLockSettings() {
+                const config = ConfigManager.load();
+                this.updateLockBtnState(config.lockEnabled);
+
+                if (!config.lockEnabled) {
+                    this.stopAutoLock();
+                    return;
+                }
+
+                // 未设置密码时无法自动锁定
+                if (!config.lockPassword) {
+                    this.stopAutoLock();
+                    return;
+                }
+
+                if (config.autoLockInterval > 0 && !this.isLocked) {
+                    this.startAutoLock(config.autoLockInterval);
+                } else {
+                    this.stopAutoLock();
+                }
+            },
+
+            // 忘记密码处理
+            handleForgotPassword() {
+                if (confirm('忘记密码将清除所有数据（薪资配置、薅羊毛历史、解锁密码），此操作不可恢复！\n确定要重置吗？')) {
+                    // 清除所有数据
+                    localStorage.removeItem(ConfigManager.STORAGE_KEY);
+                    localStorage.removeItem(WoolDataManager.STORAGE_KEY);
+                    sessionStorage.removeItem('isLocked');
+
+                    // 恢复默认配置
+                    appConfig = ConfigManager.defaults;
+
+                    // 隐藏锁定界面
+                    this.hideLockScreen();
+
+                    // 更新锁定按钮状态
+                    this.updateLockBtnState(false);
+
+                    // 重新初始化配置面板
+                    UIRenderer.initConfigPanel();
+
+                    showToast('所有数据已重置！');
+                }
+            },
+
+            // 显示九宫格修改密码界面
+            showChangePasswordModal() {
+                const config = ConfigManager.load();
+                if (!config.lockEnabled) {
+                    showToast('请先在设置中启用锁定功能');
+                    return;
+                }
+                if (!config.lockPassword) {
+                    showToast('当前还没有设置锁屏密码');
+                    return;
+                }
+
+                this.stopAutoLock();
+                this.setupMode = false;
+                this.changePasswordMode = true;
+                this.disableLockMode = false;
+                this.changeStep = 'verify-old';
+                this.firstPassword = '';
+                this.password = '';
+
+                const lockScreen = document.getElementById('lock-screen');
+                const lockInfo = document.getElementById('lock-info');
+                const lockHint = document.getElementById('lock-hint');
+                const forgotBtn = document.getElementById('forgot-password');
+
+                lockInfo.textContent = '🔐 修改锁屏密码';
+                lockHint.textContent = '请输入当前6位密码';
+                forgotBtn.classList.add('hidden');
+
+                this.updatePasswordDisplay();
+                this.bindKeypadEvents();
+                lockScreen.classList.remove('hidden');
+
+                this.isLocked = true;
+                sessionStorage.setItem('isLocked', 'true');
+                TitleManager.update();
+            }
+        };
+
+        /* ========== 主初始化入口 ========== */
+        document.addEventListener('DOMContentLoaded', () => {
+            // 1. 初始化核心功能
+            App.init();
+
+            // 2. 初始化薅羊毛功能
+            bindWoolButtons();
+            WaterReminder.init();
+            setInterval(updateWoolSummary, 1000);
+            updateWoolSummary();
+
+            // 3. 初始化隐私保护
+            NumberLock.init();
+            document.getElementById('forgot-password').addEventListener('click', () => {
+                NumberLock.handleForgotPassword();
+            });
+
+            // 4. 启用锁定功能时设置密码
+            document.getElementById('lock-enabled').addEventListener('change', (e) => {
+                const config = ConfigManager.load();
+
+                if (e.target.checked) {
+                    // 启用锁定，先保存启用状态
+                    config.lockEnabled = true;
+                    ConfigManager.save(config);
+
+                    // 启用锁定，检查是否需要设置密码
+                    if (!config.lockPassword) {
+                        NumberLock.showSetupPassword();
+                    }
+
+                    NumberLock.applyLockSettings();
+                } else {
+                    // 统一用九宫格验证后再关闭；先回滚开关，待验证成功再置为关闭
+                    e.target.checked = true;
+                    NumberLock.showDisableLockVerification(() => {
+                        NumberLock.applyLockSettings();
+                    });
+                }
+            });
+
+            // 修改自动锁定间隔后立即生效（无需等刷新）
+            document.getElementById('auto-lock-interval').addEventListener('change', (e) => {
+                const config = ConfigManager.load();
+                config.autoLockInterval = parseInt(e.target.value) || 0;
+                ConfigManager.save(config);
+                NumberLock.applyLockSettings();
+            });
+
+            // 5. 清理旧数据
+            WoolDataManager.cleanOldData();
+
+            // 6. 页面标题联动（仅当前页面且已解锁时显示正常标题）
+            TitleManager.update();
+            document.addEventListener('visibilitychange', () => TitleManager.update());
+            window.addEventListener('focus', () => TitleManager.update());
+            window.addEventListener('blur', () => TitleManager.update());
+        });
+    </script>
+</body>
+</html>
