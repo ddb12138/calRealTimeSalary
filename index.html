@@ -134,9 +134,9 @@
         }
 
         #wool-summary {
-            font-size: 24px;
+            font-size: 20px;
             color: var(--text-secondary);
-            margin-top: 12px;
+            margin-top: 8px;
         }
 
         #wool-summary .wool-amount {
@@ -144,10 +144,72 @@
             font-weight: 600;
         }
 
-        #wool-summary .total-amount {
+        #salary-income-row {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            font-size: 22px;
+            margin-top: 4px;
+            position: relative;
+        }
+
+        #salary-income {
             color: var(--primary-dark);
+            font-weight: 600;
+        }
+
+        #salary-income.animate {
+            animation: subtlePulse 0.3s ease-in-out;
+        }
+
+        @keyframes subtlePulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        .salary-breakdown-hint {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 1px solid #c7c7c7;
+            color: #6b6b6b;
+            font-size: 14px;
             font-weight: 700;
-            font-size: 28px;
+            line-height: 18px;
+            text-align: center;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: help;
+            position: relative;
+        }
+
+        .salary-breakdown-tooltip {
+            position: absolute;
+            top: calc(100% + 10px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ffffff;
+            border: 1px solid #dcdcdc;
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow);
+            padding: 10px 12px;
+            min-width: 220px;
+            text-align: left;
+            font-size: 13px;
+            color: var(--text-primary);
+            line-height: 1.6;
+            white-space: nowrap;
+            z-index: 10;
+            display: none;
+        }
+
+        .salary-breakdown-hint:hover .salary-breakdown-tooltip,
+        .salary-breakdown-hint:focus-visible .salary-breakdown-tooltip {
+            display: block;
         }
 
         /* ========== 通用按钮风格 ========== */
@@ -899,6 +961,13 @@
             <div id="salary-display">
                 <div id="status-indicator"></div>
                 <div id="salary-amount"></div>
+                <div id="salary-income-row">
+                    <span id="salary-income"></span>
+                    <span class="salary-breakdown-hint" tabindex="0" aria-label="查看工资组成">
+                        !
+                        <span id="salary-breakdown-tooltip" class="salary-breakdown-tooltip"></span>
+                    </span>
+                </div>
                 <div id="wool-summary"></div>
             </div>
 
@@ -1207,6 +1276,10 @@
             }, duration);
         }
 
+        function formatMoney(amount, digits = 1) {
+            return Number(amount).toFixed(digits);
+        }
+
         /* ========== 页面标题管理 ========== */
         const TitleManager = {
             activeTitle: document.title,
@@ -1321,29 +1394,98 @@
                 return earnedCents / 100; // 返回元
             },
 
-            // 格式化金额显示（千分位，两位小数）
+            getTodaySalaryBreakdown(fishMinutes = 0) {
+                const config = ConfigManager.load();
+                const hourlySalary = ConfigManager.getHourlySalary();
+                const now = new Date();
+                const currentMinutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+                const start = this.parseTimeToMinutes(config.workStart);
+                const end = this.parseTimeToMinutes(config.workEnd);
+                const lunchStart = this.parseTimeToMinutes(config.lunchStart);
+                const lunchEnd = this.parseTimeToMinutes(config.lunchEnd);
+
+                const clampedNow = Math.min(Math.max(currentMinutes, start), end);
+                const totalPaidMinutes = Math.max(0, clampedNow - start);
+
+                const lunchWindowStart = Math.max(start, lunchStart);
+                const lunchWindowEnd = Math.min(end, lunchEnd);
+                const lunchPaidMinutes = Math.max(
+                    0,
+                    Math.min(clampedNow, lunchWindowEnd) - lunchWindowStart
+                );
+
+                const fishPaidMinutes = Math.min(
+                    Math.max(0, fishMinutes),
+                    Math.max(0, totalPaidMinutes - lunchPaidMinutes)
+                );
+
+                const realtimeWorkMinutes = Math.max(
+                    0,
+                    totalPaidMinutes - lunchPaidMinutes - fishPaidMinutes
+                );
+
+                return {
+                    fishMoney: (fishPaidMinutes / 60) * hourlySalary,
+                    lunchMoney: (lunchPaidMinutes / 60) * hourlySalary,
+                    realtimeMoney: (realtimeWorkMinutes / 60) * hourlySalary,
+                    totalSalary: (totalPaidMinutes / 60) * hourlySalary
+                };
+            },
+
+            // 格式化金额显示（千分位，1位小数）
             formatSalary(amount) {
-                return '¥' + amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                return '¥' + formatMoney(amount, 1).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
             }
         };
 
         /* ========== UI渲染模块 ========== */
         const UIRenderer = {
-            lastSalary: 0,
+            lastTotalIncome: 0,
+            lastSalaryIncome: 0,
 
             // 更新工资显示
             updateSalaryDisplay() {
-                const salary = SalaryCalculator.calculateEarnedSalary();
-                const formatted = SalaryCalculator.formatSalary(salary);
+                const todayRecord = WoolDataManager.getTodayRecord();
+                const breakdown = SalaryCalculator.getTodaySalaryBreakdown(todayRecord.fish.totalMinutes);
+                const salaryIncome = Number(formatMoney(breakdown.totalSalary, 1));
+                const woolIncome = Number(formatMoney(todayRecord.totalWool, 1));
+                const totalIncome = Number(formatMoney(salaryIncome + woolIncome, 1));
+
                 const salaryAmount = document.getElementById('salary-amount');
-                salaryAmount.textContent = formatted;
+                const salaryIncomeEl = document.getElementById('salary-income');
+                const woolSummaryEl = document.getElementById('wool-summary');
+                const tooltipEl = document.getElementById('salary-breakdown-tooltip');
+
+                salaryAmount.textContent = SalaryCalculator.formatSalary(totalIncome);
+                salaryIncomeEl.textContent = `工资实时收入 ${SalaryCalculator.formatSalary(salaryIncome)}`;
+                woolSummaryEl.innerHTML = `<span class="wool-amount">薅羊毛收入 ${SalaryCalculator.formatSalary(woolIncome)}</span>`;
+
+                const roundedTotalSalary = Number(formatMoney(breakdown.totalSalary, 1));
+                const roundedFishSalary = Number(formatMoney(breakdown.fishMoney, 1));
+                const roundedLunchSalary = Number(formatMoney(breakdown.lunchMoney, 1));
+                const roundedRealtimeSalary = Number(
+                    formatMoney(Math.max(0, roundedTotalSalary - roundedFishSalary - roundedLunchSalary), 1)
+                );
+                tooltipEl.innerHTML = `
+                    <div>勤恳上班：${SalaryCalculator.formatSalary(roundedRealtimeSalary)}</div>
+                    <div>摸鱼收入：${SalaryCalculator.formatSalary(roundedFishSalary)}</div>
+                    <div>午睡收入：${SalaryCalculator.formatSalary(roundedLunchSalary)}</div>
+                    <div><strong>合计（当天工资）：${SalaryCalculator.formatSalary(roundedTotalSalary)}</strong></div>
+                `;
 
                 // 添加动画效果（金额变化时）
-                if (Math.abs(salary - this.lastSalary) >= 0.01) {
+                if (Math.abs(totalIncome - this.lastTotalIncome) >= 0.1) {
                     salaryAmount.classList.add('animate');
                     setTimeout(() => salaryAmount.classList.remove('animate'), 100);
                 }
-                this.lastSalary = salary;
+
+                if (Math.abs(salaryIncome - this.lastSalaryIncome) >= 0.1) {
+                    salaryIncomeEl.classList.add('animate');
+                    setTimeout(() => salaryIncomeEl.classList.remove('animate'), 100);
+                }
+
+                this.lastTotalIncome = totalIncome;
+                this.lastSalaryIncome = salaryIncome;
             },
 
             // 更新状态指示
@@ -1542,12 +1684,28 @@
                 try {
                     const saved = localStorage.getItem(this.STORAGE_KEY);
                     if (saved) {
-                        return JSON.parse(saved);
+                        const parsed = JSON.parse(saved);
+                        if (Array.isArray(parsed.records)) {
+                            parsed.records = parsed.records.map(r => this.normalizeRecord(r));
+                        }
+                        return parsed;
                     }
                 } catch (e) {
                     console.error('加载薅羊毛数据失败:', e);
                 }
                 return { records: [], stats: { totalDays: 0, totalWaterMl: 0, totalElectricKwh: 0, totalFishMinutes: 0, totalWoolMoney: 0 } };
+            },
+
+            // 兼容历史数据：摸鱼收入不计入薅羊毛
+            normalizeRecord(record) {
+                const normalized = {
+                    ...record,
+                    water: record.water || { amount: 0, money: 0 },
+                    electric: record.electric || { devices: [], totalKwh: 0, money: 0 },
+                    fish: record.fish || { items: [], totalMinutes: 0, money: 0 }
+                };
+                normalized.totalWool = (normalized.water.money || 0) + (normalized.electric.money || 0);
+                return normalized;
             },
 
             // 保存薅羊毛数据
@@ -1662,7 +1820,7 @@
 
             // 更新今日总薅羊毛金额
             updateTotalWool(record) {
-                record.totalWool = record.water.money + record.electric.money + record.fish.money;
+                record.totalWool = record.water.money + record.electric.money;
             },
 
             // 更新统计数据
@@ -1778,7 +1936,7 @@
                         const ml = parseInt(btn.dataset.ml);
                         const money = WoolDataManager.addWaterRecord(ml);
                         this.hide();
-                        showToast(`喝${ml}ml水，薅羊毛 ¥${money.toFixed(4)}`);
+                        showToast(`喝${ml}ml水，薅羊毛 ¥${formatMoney(money, 2)}`);
                     });
                 });
 
@@ -1788,7 +1946,7 @@
                     if (ml > 0) {
                         const money = WoolDataManager.addWaterRecord(ml);
                         this.hide();
-                        showToast(`喝${ml}ml水，薅羊毛 ¥${money.toFixed(4)}`);
+                        showToast(`喝${ml}ml水，薅羊毛 ¥${formatMoney(money, 2)}`);
                     }
                 });
             },
@@ -1840,7 +1998,7 @@
                             'laptop': '笔记本',
                             'earphone': '耳机'
                         };
-                        showToast(`充${deviceNames[device]}，薅羊毛 ¥${money.toFixed(4)}`);
+                        showToast(`充${deviceNames[device]}，薅羊毛 ¥${formatMoney(money, 2)}`);
                     });
                 });
 
@@ -1857,7 +2015,7 @@
                         'laptop': '笔记本',
                         'earphone': '耳机'
                     };
-                    showToast(`充${deviceNames[device]}×${count}次，薅羊毛 ¥${money.toFixed(4)}`);
+                    showToast(`充${deviceNames[device]}×${count}次，薅羊毛 ¥${formatMoney(money, 2)}`);
                 });
             },
 
@@ -1906,7 +2064,7 @@
                         const type = document.getElementById('fish-type').value;
                         const money = WoolDataManager.addFishRecord(type, minutes);
                         this.hide();
-                        showToast(`${type} ${minutes}分钟，薅羊毛 ¥${money.toFixed(2)}`);
+                        showToast(`${type} ${minutes}分钟，摸鱼收入 ¥${formatMoney(money, 1)}`);
                     });
                 });
 
@@ -1917,7 +2075,7 @@
                     if (minutes > 0) {
                         const money = WoolDataManager.addFishRecord(type, minutes);
                         this.hide();
-                        showToast(`${type} ${minutes}分钟，薅羊毛 ¥${money.toFixed(2)}`);
+                        showToast(`${type} ${minutes}分钟，摸鱼收入 ¥${formatMoney(money, 1)}`);
                     }
                 });
             },
@@ -1927,28 +2085,40 @@
                 const today = WoolDataManager.getTodayRecord();
                 const week = WoolDataManager.getWeekStats();
                 const month = WoolDataManager.getMonthStats();
+                const salaryBreakdown = SalaryCalculator.getTodaySalaryBreakdown(today.fish.totalMinutes);
+                const roundedTotalSalary = Number(formatMoney(salaryBreakdown.totalSalary, 1));
+                const roundedFishSalary = Number(formatMoney(salaryBreakdown.fishMoney, 1));
+                const roundedLunchSalary = Number(formatMoney(salaryBreakdown.lunchMoney, 1));
+                const roundedDiligentSalary = Number(
+                    formatMoney(Math.max(0, roundedTotalSalary - roundedFishSalary - roundedLunchSalary), 1)
+                );
+                const roundedTotalIncome = Number(formatMoney(roundedTotalSalary + today.totalWool, 1));
 
                 const html = `
                     <div class="record-panel">
-                        <h2>📊 薅羊毛战绩</h2>
+                        <h2>📊 今日战绩</h2>
 
                         <h3>今日战绩 (${today.date})</h3>
                         <div class="stats-card">
-                            <p>💧 喝水：${today.water.amount}ml，赚 ¥${today.water.money.toFixed(4)}</p>
-                            <p>⚡ 充电：${today.electric.totalKwh.toFixed(3)}度，赚 ¥${today.electric.money.toFixed(4)}</p>
-                            <p>🐟 摸鱼：${today.fish.totalMinutes}分钟，赚 ¥${today.fish.money.toFixed(2)}</p>
-                            <p><strong>今日总计：¥${today.totalWool.toFixed(4)}</strong></p>
+                            <p>💼 勤恳上班：¥${formatMoney(roundedDiligentSalary, 1)}</p>
+                            <p>🐟 摸鱼收入：¥${formatMoney(roundedFishSalary, 1)}</p>
+                            <p>😴 午睡收入：¥${formatMoney(roundedLunchSalary, 1)}</p>
+                            <p><strong>合计（当天工资）：¥${formatMoney(roundedTotalSalary, 1)}</strong></p>
+                            <p>💧 喝水：${today.water.amount}ml，赚 ¥${formatMoney(today.water.money, 1)}</p>
+                            <p>⚡ 充电：${today.electric.totalKwh.toFixed(3)}度，赚 ¥${formatMoney(today.electric.money, 1)}</p>
+                            <p><strong>今日薅羊毛总计：¥${formatMoney(today.totalWool, 1)}</strong></p>
+                            <p><strong>今日总收入（当天工资+薅羊毛）：¥${formatMoney(roundedTotalIncome, 1)}</strong></p>
                         </div>
 
                         <h3>本周战绩</h3>
                         <div class="stats-card">
-                            <p>共${week.days}天，薅羊毛 ¥${week.totalWoolMoney.toFixed(2)}</p>
+                            <p>共${week.days}天，薅羊毛 ¥${formatMoney(week.totalWoolMoney, 1)}</p>
                             <p>喝水${(week.totalWaterMl/1000).toFixed(1)}L，摸鱼${week.totalFishMinutes}分钟</p>
                         </div>
 
                         <h3>本月战绩</h3>
                         <div class="stats-card">
-                            <p>共${month.days}天，薅羊毛 ¥${month.totalWoolMoney.toFixed(2)}</p>
+                            <p>共${month.days}天，薅羊毛 ¥${formatMoney(month.totalWoolMoney, 1)}</p>
                             <p>喝水${(month.totalWaterMl/1000).toFixed(1)}L，摸鱼${month.totalFishMinutes}分钟</p>
                         </div>
 
@@ -2053,19 +2223,6 @@
                 }
             }
         };
-
-        // 更新薅羊毛汇总显示
-        function updateWoolSummary() {
-            const todayRecord = WoolDataManager.getTodayRecord();
-            const woolSummary = document.getElementById('wool-summary');
-            const salary = SalaryCalculator.calculateEarnedSalary();
-            const total = salary + todayRecord.totalWool;
-
-            woolSummary.innerHTML = `
-                <span class="wool-amount">薅羊毛 ¥${todayRecord.totalWool.toFixed(2)}</span>
-                <span class="total-amount">今日总收益 ¥${total.toFixed(2)}</span>
-            `;
-        }
 
         // 绑定薅羊毛按钮事件
         function bindWoolButtons() {
@@ -2702,8 +2859,6 @@
             // 2. 初始化薅羊毛功能
             bindWoolButtons();
             WaterReminder.init();
-            setInterval(updateWoolSummary, 1000);
-            updateWoolSummary();
 
             // 3. 初始化隐私保护
             NumberLock.init();
