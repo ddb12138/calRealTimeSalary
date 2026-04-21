@@ -1241,6 +1241,15 @@
                 }
             },
 
+            // 获取日薪（统一口径）
+            getDailySalary() {
+                const config = this.load();
+                if (config.salaryMode === 'monthly') {
+                    return config.monthlySalary / config.workDaysPerMonth;
+                }
+                return this.getHourlySalary() * this.getDailyWorkHours();
+            },
+
             // 获取每天工作小时数（扣除午休）
             getDailyWorkHours() {
                 const config = this.load();
@@ -1348,55 +1357,37 @@
             // 计算当前已赚取的工资（精确到分，用整数存储避免浮点精度问题）
             calculateEarnedSalary() {
                 const config = ConfigManager.load();
-                const status = this.getWorkStatus();
-                const hourlySalary = ConfigManager.getHourlySalary();
-
-                // 工作未开始，返回0
-                if (status === 'before-work') {
-                    return 0;
-                }
+                const dailySalary = ConfigManager.getDailySalary();
 
                 const now = new Date();
-                const currentMinutes = now.getHours() * 60 + now.getMinutes();
-                const currentSeconds = now.getSeconds();
-
+                const currentMinutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
                 const start = this.parseTimeToMinutes(config.workStart);
                 const end = this.parseTimeToMinutes(config.workEnd);
                 const lunchStart = this.parseTimeToMinutes(config.lunchStart);
                 const lunchEnd = this.parseTimeToMinutes(config.lunchEnd);
+                const clampedNow = Math.min(Math.max(currentMinutes, start), end);
+                const elapsedTimelineMinutes = Math.max(0, clampedNow - start);
 
-                let workedMinutes = 0;
-
-                if (status === 'off-work') {
-                    // 工作已结束，计算整天工作时间
-                    workedMinutes = (end - start) - (lunchEnd - lunchStart);
-                } else if (status === 'working') {
-                    // 正在工作，计算到当前时间的已工作时间
-                    workedMinutes = currentMinutes - start;
-
-                    // 扣除午休时间（如果已过午休）
-                    if (currentMinutes >= lunchEnd) {
-                        workedMinutes -= (lunchEnd - lunchStart);
-                    } else if (currentMinutes >= lunchStart) {
-                        // 当前在午休时间，但状态应该是lunch，这里不应该出现
-                        workedMinutes = lunchStart - start;
-                    }
-                } else if (status === 'lunch') {
-                    // 午休时间，计算上午工作时间
-                    workedMinutes = currentMinutes - start;
-                }
-
-                // 计算薪资（精确到分）
-                // 使用秒数增加精度
-                const totalSeconds = workedMinutes * 60 + currentSeconds;
-                const earnedCents = Math.floor((totalSeconds / 3600) * hourlySalary * 100);
+                const lunchWindowStart = Math.max(start, lunchStart);
+                const lunchWindowEnd = Math.min(end, lunchEnd);
+                const elapsedLunchMinutes = Math.max(
+                    0,
+                    Math.min(clampedNow, lunchWindowEnd) - lunchWindowStart
+                );
+                const payableMinutes = Math.max(0, elapsedTimelineMinutes - elapsedLunchMinutes);
+                const fullDayPayableMinutes = Math.max(
+                    1,
+                    (end - start) - Math.max(0, Math.min(end, lunchEnd) - Math.max(start, lunchStart))
+                );
+                const progress = Math.max(0, Math.min(1, payableMinutes / fullDayPayableMinutes));
+                const earnedCents = Math.round(dailySalary * progress * 100);
 
                 return earnedCents / 100; // 返回元
             },
 
             getTodaySalaryBreakdown(fishMinutes = 0) {
                 const config = ConfigManager.load();
-                const hourlySalary = ConfigManager.getHourlySalary();
+                const dailySalary = ConfigManager.getDailySalary();
                 const now = new Date();
                 const currentMinutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
                 const start = this.parseTimeToMinutes(config.workStart);
@@ -1405,30 +1396,46 @@
                 const lunchEnd = this.parseTimeToMinutes(config.lunchEnd);
 
                 const clampedNow = Math.min(Math.max(currentMinutes, start), end);
-                const totalPaidMinutes = Math.max(0, clampedNow - start);
+                const elapsedTimelineMinutes = Math.max(0, clampedNow - start);
 
                 const lunchWindowStart = Math.max(start, lunchStart);
                 const lunchWindowEnd = Math.min(end, lunchEnd);
-                const lunchPaidMinutes = Math.max(
+                const lunchTimelineMinutes = Math.max(
                     0,
                     Math.min(clampedNow, lunchWindowEnd) - lunchWindowStart
                 );
+                const payableMinutes = Math.max(0, elapsedTimelineMinutes - lunchTimelineMinutes);
+                const fullDayPayableMinutes = Math.max(
+                    1,
+                    (end - start) - Math.max(0, Math.min(end, lunchEnd) - Math.max(start, lunchStart))
+                );
+                const progress = Math.max(0, Math.min(1, payableMinutes / fullDayPayableMinutes));
+                const totalSalary = dailySalary * progress;
 
-                const fishPaidMinutes = Math.min(
+                // 口径统一：将当天工资按时段占比分摊，保证三项合计严格等于当天工资
+                const fishTimelineMinutes = Math.min(
                     Math.max(0, fishMinutes),
-                    Math.max(0, totalPaidMinutes - lunchPaidMinutes)
+                    Math.max(0, elapsedTimelineMinutes - lunchTimelineMinutes)
                 );
 
-                const realtimeWorkMinutes = Math.max(
-                    0,
-                    totalPaidMinutes - lunchPaidMinutes - fishPaidMinutes
-                );
+                if (elapsedTimelineMinutes <= 0) {
+                    return {
+                        fishMoney: 0,
+                        lunchMoney: 0,
+                        realtimeMoney: 0,
+                        totalSalary: 0
+                    };
+                }
+
+                const fishMoney = (fishTimelineMinutes / elapsedTimelineMinutes) * totalSalary;
+                const lunchMoney = (lunchTimelineMinutes / elapsedTimelineMinutes) * totalSalary;
+                const realtimeMoney = Math.max(0, totalSalary - fishMoney - lunchMoney);
 
                 return {
-                    fishMoney: (fishPaidMinutes / 60) * hourlySalary,
-                    lunchMoney: (lunchPaidMinutes / 60) * hourlySalary,
-                    realtimeMoney: (realtimeWorkMinutes / 60) * hourlySalary,
-                    totalSalary: (totalPaidMinutes / 60) * hourlySalary
+                    fishMoney,
+                    lunchMoney,
+                    realtimeMoney,
+                    totalSalary
                 };
             },
 
@@ -1470,7 +1477,7 @@
                     <div>勤恳上班：${SalaryCalculator.formatSalary(roundedRealtimeSalary)}</div>
                     <div>摸鱼收入：${SalaryCalculator.formatSalary(roundedFishSalary)}</div>
                     <div>午睡收入：${SalaryCalculator.formatSalary(roundedLunchSalary)}</div>
-                    <div><strong>合计（当天工资）：${SalaryCalculator.formatSalary(roundedTotalSalary)}</strong></div>
+                    <div><strong>合计（当天工资）：¥${formatMoney(roundedTotalSalary, 2)}</strong></div>
                 `;
 
                 // 添加动画效果（金额变化时）
@@ -2103,7 +2110,7 @@
                             <p>💼 勤恳上班：¥${formatMoney(roundedDiligentSalary, 1)}</p>
                             <p>🐟 摸鱼收入：¥${formatMoney(roundedFishSalary, 1)}</p>
                             <p>😴 午睡收入：¥${formatMoney(roundedLunchSalary, 1)}</p>
-                            <p><strong>合计（当天工资）：¥${formatMoney(roundedTotalSalary, 1)}</strong></p>
+                            <p><strong>合计（当天工资）：¥${formatMoney(roundedTotalSalary, 2)}</strong></p>
                             <p>💧 喝水：${today.water.amount}ml，赚 ¥${formatMoney(today.water.money, 1)}</p>
                             <p>⚡ 充电：${today.electric.totalKwh.toFixed(3)}度，赚 ¥${formatMoney(today.electric.money, 1)}</p>
                             <p><strong>今日薅羊毛总计：¥${formatMoney(today.totalWool, 1)}</strong></p>
